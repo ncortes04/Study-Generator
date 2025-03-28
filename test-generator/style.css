@@ -1,0 +1,11 @@
+.event {
+    padding: 4px;
+    border-radius: 4px;
+    font-size: 14px;
+    color: white;
+  }
+  .event.red { background-color: rgb(255, 39, 23); }
+  .event.green { background-color:   rgb(0, 150, 6); }
+  .event.blue { background-color: rgb(11, 155, 227); }
+  .event.teal { background-color: rgb(0, 150, 136); }
+  

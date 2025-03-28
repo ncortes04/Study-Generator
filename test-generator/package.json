@@ -1,0 +1,7 @@
+{
+  "dependencies": {
+    "pupeteer": "^0.0.1",
+    "puppeteer": "^24.4.0",
+    "sharp": "^0.33.5"
+  }
+}
