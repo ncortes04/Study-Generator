@@ -1,6 +1,8 @@
 const puppeteer = require("puppeteer");
 const fs = require("fs");
 const path = require("path");
+const xml2js = require("xml2js");
+const sharp = require("sharp");
 
 const COLORS = ["red", "green", "blue", "teal"];
 const TASK_NAMES = [
@@ -17,30 +19,30 @@ const TASK_NAMES = [
 
 const outputDir = "test-generator";
 const imgDir = path.join(outputDir, "images");
+const tempDir = path.join(outputDir, "tempImages"); // Temporary folder for PNG screenshots
 const labelDir = path.join(outputDir, "labels");
 
+// Ensure necessary directories exist
 if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir);
 if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir);
 if (!fs.existsSync(labelDir)) fs.mkdirSync(labelDir);
+if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir); // Make sure the temp directory exists
 
-const TOTAL_IMAGES = 1000;
+const TOTAL_IMAGES = 400;
 
 (async () => {
   const browser = await puppeteer.launch({
     headless: "new",
   });
-  // Create an array of promises for processing each page
   const pagePromises = [];
 
-  for (let i = 900; i < TOTAL_IMAGES; i++) {
+  for (let i = 100; i < TOTAL_IMAGES; i++) {
     const pagePromise = async () => {
       const page = await browser.newPage();
       const htmlPath = path.resolve(__dirname, "canvas-calendar.html");
       await page.goto("file://" + htmlPath, { waitUntil: "domcontentloaded" });
-      // page.on("console", (msg) => {
-      //   console.log("PAGE LOG:", msg.text()); // Logs the message in the console
-      // });
-      await page.setViewport({ width: 1200, height: 1100 });
+      await page.setViewport({ width: 800, height: 600 });
+
       await page.evaluate(
         (COLORS, TASK_NAMES) => {
           const getRandomTime = () => {
@@ -52,20 +54,55 @@ const TOTAL_IMAGES = 1000;
             return `${hour}${minutes}${ampm}`;
           };
 
-          const weekRows = document.querySelectorAll(
+          let weekRows = document.querySelectorAll(
             ".fc-content-skeleton tbody tr"
           );
+          weekRows = Array.from(weekRows).slice(0, -3);
+          let totalAdded = 0; // Total events added
+          const toBeAdded = 25; // Total events to be added
 
-          weekRows.forEach((row) => {
+          // Max number of events per day
+          const MAX_EVENTS_PER_DAY = 4;
+
+          // Create an array for the days (21 days) that holds the number of events
+          let daysEventsMap = Array(21).fill(0); // Using let here instead of const
+
+          // Randomly distribute events such that the sum of the events equals 25
+          while (daysEventsMap.reduce((acc, val) => acc + val, 0) < toBeAdded) {
+            let randomIndex = Math.floor(Math.random() * 21); // Random day index (0-20)
+            if (daysEventsMap[randomIndex] < MAX_EVENTS_PER_DAY) {
+              daysEventsMap[randomIndex]++;
+            }
+          }
+
+          // Ensure we exactly have 25 events (if there's an issue where it's slightly under, we can fill it)
+          const totalEvents = daysEventsMap.reduce((acc, val) => acc + val, 0);
+          if (totalEvents < toBeAdded) {
+            let remainingEvents = toBeAdded - totalEvents;
+            for (
+              let i = 0;
+              remainingEvents > 0 && i < daysEventsMap.length;
+              i++
+            ) {
+              if (daysEventsMap[i] < MAX_EVENTS_PER_DAY) {
+                daysEventsMap[i]++;
+                remainingEvents--;
+              }
+            }
+          }
+
+          // Now `daysEventsMap` contains the number of events for each of the 21 days
+
+          // Add events to the calendar
+          let dayIndex = 0;
+          weekRows.forEach((row, rowIndex) => {
             const dayCells = row.querySelectorAll("td");
 
             dayCells.forEach((td, index) => {
-              if (!td.classList.contains("fc-event-container")) {
-                td.classList.add("fc-event-container");
-              }
+              const numEventsForDay = daysEventsMap[dayIndex];
 
-              const numEvents = Math.floor(Math.random() * 4);
-              for (let j = 0; j < numEvents; j++) {
+              // If we have events for this day
+              for (let j = 0; j < numEventsForDay; j++) {
                 const color = COLORS[Math.floor(Math.random() * COLORS.length)];
                 const task =
                   TASK_NAMES[Math.floor(Math.random() * TASK_NAMES.length)];
@@ -101,18 +138,20 @@ const TOTAL_IMAGES = 1000;
                 a.appendChild(content);
 
                 td.appendChild(a);
+                totalAdded++;
               }
+              dayIndex++;
             });
           });
         },
         COLORS,
-        TASK_NAMES // Just pass these as arguments
+        TASK_NAMES
       );
 
       const boxes = await page.evaluate(() => {
         return Array.from(document.querySelectorAll(".event")).map((el) => {
-          const rect = el.getBoundingClientRect(); // Get the event's position and dimensions
-          const dayOfWeek = parseInt(el.getAttribute("data-day-of-week"), 10); // Get the index for the day (0 for Sunday, etc.)
+          const rect = el.getBoundingClientRect();
+          const dayOfWeek = parseInt(el.getAttribute("data-day-of-week"), 10);
           const headerCells = document.querySelectorAll("thead .fc-day-top");
           const dayCell = headerCells[dayOfWeek];
           const date = dayCell
@@ -134,9 +173,9 @@ const TOTAL_IMAGES = 1000;
             "Thursday",
             "Friday",
             "Saturday",
-          ][dayOfWeek]; // Get the weekday (Sunday, Monday, etc.)
+          ][dayOfWeek];
 
-          const dayNumber = date.split("-")[2]; // Extract the day number
+          const dayNumber = date.split("-")[2];
 
           return {
             x: rect.x,
@@ -151,35 +190,61 @@ const TOTAL_IMAGES = 1000;
         });
       });
 
-      const imgWidth = 1200;
-      const imgHeight = 1100;
+      const imgWidth = 800;
+      const imgHeight = 600;
 
-      const yoloLabels = boxes.map((b) => {
-        const cx = (b.x + b.width / 2) / imgWidth;
-        const cy = (b.y + b.height / 2) / imgHeight;
-        const w = b.width / imgWidth;
-        const h = b.height / imgHeight;
+      const builder = new xml2js.Builder();
+      const annotation = {
+        annotation: {
+          folder: "images",
+          filename: `calendar_${i}.jpg`, // Save as JPG
+          path: path.join(labelDir, `calendar_${i}.jpg`),
+          size: {
+            width: imgWidth,
+            height: imgHeight,
+            depth: 3,
+          },
+          object: boxes.map((b) => ({
+            name: b.task,
+            pose: "Unspecified",
+            truncated: 0,
+            difficult: 0,
+            bndbox: {
+              xmin: Math.floor(b.x),
+              ymin: Math.floor(b.y),
+              xmax: Math.floor(b.x + b.width),
+              ymax: Math.floor(b.y + b.height),
+            },
+          })),
+        },
+      };
 
-        return `${b.weekday}, ${b.date}, ${b.time}, ${b.task}, ${cx.toFixed(
-          6
-        )} ${cy.toFixed(6)} ${w.toFixed(6)} ${h.toFixed(6)}`;
-      });
+      const xml = builder.buildObject(annotation);
+      const labelPath = path.join(labelDir, `calendar_${i}.xml`);
+      fs.writeFileSync(labelPath, xml);
 
-      const imgPath = path.join(imgDir, `calendar_${i}.png`);
-      const labelPath = path.join(labelDir, `calendar_${i}.txt`);
+      const tempImagePath = path.join(tempDir, `calendar_${i}.png`); // Temp folder path
 
-      await page.screenshot({ path: imgPath });
-      fs.writeFileSync(labelPath, yoloLabels.join("\n"));
+      // Save the screenshot as a PNG file in the temp folder
+      await page.screenshot({ path: tempImagePath, type: "png" });
 
+      // Resize the image to 800x600 and save it as JPG in the imgDir (without cropping)
+      const finalImgPath = path.join(imgDir, `calendar_${i}.jpg`);
+      await sharp(tempImagePath)
+        // .resize(800, 450) // Resize to the target size (800x600)
+        .toFormat("jpeg") // Save as JPG
+        .toFile(finalImgPath); // Save to final location
+
+      // Clean up by removing the temporary PNG file
+      fs.unlinkSync(tempImagePath);
+
+      console.log(`Generated and resized ${finalImgPath} and ${labelPath}`);
       await page.close();
-      console.log(`Generated ${imgPath} and ${labelPath}`);
     };
 
-    // Push each page task as a promise
     pagePromises.push(pagePromise());
   }
 
   await Promise.all(pagePromises);
-
   await browser.close(); // ✅ Only close once after all tasks are finished
 })();

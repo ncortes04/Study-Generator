@@ -2,6 +2,7 @@
   "dependencies": {
     "pupeteer": "^0.0.1",
     "puppeteer": "^24.4.0",
-    "sharp": "^0.33.5"
+    "sharp": "^0.33.5",
+    "xml2js": "^0.6.2"
   }
 }
