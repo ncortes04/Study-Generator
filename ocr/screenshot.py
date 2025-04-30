@@ -1,4 +1,3 @@
-# ocr/screenshot.py
 from PIL import ImageGrab, Image
 import hashlib
 

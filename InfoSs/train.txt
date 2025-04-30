@@ -1,0 +1,1 @@
+python train.py --weights runs/train/calendar_detector_class4_200Val2/weights/best.pt --data ../variable_data.yaml --epochs 100 --img 512 --batch-size 32 --workers 16 --rect --name calendar_detector_class4_200ValFinal --hyp data/hyps/hyp.finetune.yaml

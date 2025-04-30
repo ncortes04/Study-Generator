@@ -1,66 +1,80 @@
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
-const xml2js = require("xml2js");
 
-const imgDir = path.join("test-generator", "images");
-const labelDir = path.join("test-generator", "labels");
-const outputImagesDir = path.join("test-generator", "output_images");
+const classNames = ["todo", "discussion", "class", "assignment"];
 
-// Ensure the output directory exists
-if (!fs.existsSync(outputImagesDir)) fs.mkdirSync(outputImagesDir);
+const imgDir = path.join("test-generator/variable/images", "val");
+const labelDir = path.join("test-generator/variable/labels", "val");
+const outputImagesDir = path.join("test-generator", "output_images_yolo_style");
 
-// Function to draw bounding boxes on the image
-async function visualizeBoundingBoxes(imagePath, xmlPath) {
+if (!fs.existsSync(outputImagesDir))
+  fs.mkdirSync(outputImagesDir, { recursive: true });
+
+async function visualizeYOLOBoxes(imagePath, labelPath) {
   const image = sharp(imagePath);
-  // Parse the XML file to extract bounding boxes
-  const xmlData = fs.readFileSync(xmlPath, "utf8");
+  const { width: imgWidth, height: imgHeight } = await image.metadata();
 
-  const parser = new xml2js.Parser();
-  const jsonData = await parser.parseStringPromise(xmlData);
+  const labelData = fs.readFileSync(labelPath, "utf8");
+  const lines = labelData.split("\n").filter((line) => line.trim() !== "");
 
-  const imageMetadata = await image.metadata();
-  const imgWidth = imageMetadata.width;
-  const imgHeight = imageMetadata.height;
+  const composites = [];
 
-  const rectangles = jsonData.annotation.object.map((obj) => {
-    const { xmin, ymin, xmax, ymax } = obj.bndbox[0];
+  for (const line of lines) {
+    const [clsIndex, cxNorm, cyNorm, wNorm, hNorm] = line
+      .split(" ")
+      .map(Number);
+    const className = classNames[clsIndex] || "unknown";
 
-    // Convert to integer pixel values
-    const x1 = parseInt(xmin[0]);
-    const y1 = parseInt(ymin[0]);
-    const x2 = parseInt(xmax[0]);
-    const y2 = parseInt(ymax[0]);
+    const cx = cxNorm * imgWidth;
+    const cy = cyNorm * imgHeight;
+    const boxWidth = wNorm * imgWidth;
+    const boxHeight = hNorm * imgHeight;
 
-    return {
-      input: Buffer.from(
-        `<svg width="${x2 - x1}" height="${y2 - y1}">
-          <rect x="0" y="0" width="${x2 - x1}" height="${
-          y2 - y1
-        }" stroke="red" fill="transparent" stroke-width="2" />
-        </svg>`
-      ),
-      top: y1,
-      left: x1,
-    };
-  });
+    const x1 = cx - boxWidth / 2;
+    const y1 = cy - boxHeight / 2;
 
-  const imageWithBoxes = image.composite(rectangles);
+    // 📦 Rectangle
+    composites.push({
+      input: Buffer.from(`
+        <svg width="${imgWidth}" height="${imgHeight}">
+          <rect x="${x1}" y="${y1}" width="${boxWidth}" height="${boxHeight}"
+            stroke="lime" fill="none" stroke-width="2"/>
+        </svg>
+      `),
+      left: 0,
+      top: 0,
+    });
 
-  const outputImagePath = path.join(outputImagesDir, path.basename(imagePath));
-  await imageWithBoxes.toFile(outputImagePath);
+    // 🏷️ Label with background for visibility
+    composites.push({
+      input: Buffer.from(`
+        <svg width="${imgWidth}" height="${imgHeight}">
+          <rect x="${x1}" y="${y1 - 24}" width="120" height="24" fill="yellow"/>
+          <text x="${x1 + 4}" y="${
+        y1 - 6
+      }" font-size="16" font-weight="bold" fill="black">
+            ${className}
+          </text>
+        </svg>
+      `),
+      left: 0,
+      top: 0,
+    });
+  }
 
-  console.log(`Image saved with bounding boxes: ${outputImagePath}`);
+  const outputPath = path.join(outputImagesDir, path.basename(imagePath));
+  await image.composite(composites).toFile(outputPath);
+  console.log(`✅ Saved: ${outputPath}`);
 }
 
 async function visualizeAllImages() {
-  const TOTAL_IMAGES = 2;
-
+  const TOTAL_IMAGES = 50; // Adjust as needed
   for (let i = 0; i < TOTAL_IMAGES; i++) {
     const imgPath = path.join(imgDir, `calendar_${i}.jpg`);
-    const xmlPath = path.join(labelDir, `calendar_${i}.xml`);
-    if (fs.existsSync(imgPath) && fs.existsSync(xmlPath)) {
-      await visualizeBoundingBoxes(imgPath, xmlPath);
+    const txtPath = path.join(labelDir, `calendar_${i}.txt`);
+    if (fs.existsSync(imgPath) && fs.existsSync(txtPath)) {
+      await visualizeYOLOBoxes(imgPath, txtPath);
     }
   }
 }

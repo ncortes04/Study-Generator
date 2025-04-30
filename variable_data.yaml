@@ -1,0 +1,5 @@
+train: ../test-generator/variable/images/train
+val: ../test-generator/variable/images/val
+
+nc: 4
+names: ["todo", "discussion", "class", "assignment"]

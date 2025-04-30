@@ -1,4 +1,7 @@
-.inline-calendar-event-titles .fc-day-grid-event .fc-content{text-overflow:ellipsis}.fc-rtl .fc-toolbar{flex-direction:row-reverse}.skip-to-calendar{padding:4px 8px;background:var(--ic-link-color);background-clip:border-box;text-align:center;color:#fff;text-decoration:none;border-radius:4px;border:1px dashed rgba(255,255,255,.8)}.skip-to-calendar:focus{color:#fff}.skip-to-calendar:focus{text-decoration:underline}.calendar_header .recommend_agenda{position:relative}.error-message{color:#e0061f}.error-message i{vertical-align:middle;margin-right:.25rem}/*!
+.inline-calendar-event-titles .fc-day-grid-event .fc-content{text-overflow:ellipsis}.fc-rtl .fc-toolbar{flex-direction:row-reverse}.skip-to-calendar{padding:4px 8px;background:var(--ic-link-color);background-clip:border-box;text-align:center;color:#fff;text-decoration:none;border-radius:4px;border:1px dashed rgba(255,255,255,.8)}.skip-to-calendar:focus{color:#fff}.skip-to-calendar:focus{text-decoration:underline}.calendar_header .recommend_agenda{position:relative}.error-message{color:#e0061f}.error-message i{vertical-align:middle;margin-right:.25rem}.calendar__event--completed {
+    text-decoration: line-through;
+    opacity: .7;
+}/*!
  * FullCalendar v3.10.5
  * Docs & License: https://fullcalendar.io/
  * (c) 2019 Adam Shaw
