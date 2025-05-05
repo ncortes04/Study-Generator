@@ -38,23 +38,31 @@ def dynamic_merge_threshold(image):
         return 10
     else:
         return 15
-def getSortedLikeCalendar(all_boxes=None,y_thresh=8):
+def getSortedLikeCalendar(all_boxes=None, y_thresh=8):
+    if not all_boxes:
+        return []
+
+    all_boxes = sorted(all_boxes, key=lambda box: (box[1], box[0]))  # sort top to bottom, then left to right
+
     rows = []
     current_row = []
+    anchor_y = all_boxes[0][1]  # fixed anchor for the row
 
-    last_y = None
-    for box in all_boxes:  # assumes already sorted by (y1, x1)
+    for box in all_boxes:
         y1 = box[1]
-        if not current_row or abs(y1 - last_y) < y_thresh:
+        if abs(y1 - anchor_y) < y_thresh:
             current_row.append(box)
         else:
-            rows.append(current_row)
+            rows.append(sorted(current_row, key=lambda b: b[0]))  # sort row left to right
             current_row = [box]
-        last_y = y1
+            anchor_y = y1  # reset anchor for new row
+
     if current_row:
-        rows.append(sorted(current_row, key=lambda box: box[0]))
+        rows.append(sorted(current_row, key=lambda b: b[0]))
+
 
     return rows
+
 def merge_partial_boxes_once(partial_rows, full_boxes=None, y_thresh=8, x_thresh=20, text_entry=None, test_mode=False):
     if not partial_rows:
         return []
@@ -64,7 +72,6 @@ def merge_partial_boxes_once(partial_rows, full_boxes=None, y_thresh=8, x_thresh
     if full_boxes:
         areas = [(x2 - x1) * (y2 - y1) for x1, y1, x2, y2, *_ in full_boxes]
         avg_full_area = np.mean(areas) if areas else None
-
 
     merged_boxes = []
 
@@ -84,7 +91,6 @@ def merge_partial_boxes_once(partial_rows, full_boxes=None, y_thresh=8, x_thresh
                 v_overlap = min(y2, y2b) - max(y1, y1b)
 
                 if -15 <= h_gap <= 15 and v_overlap > -y_thresh:
-                    # Bias confidence toward left
                     conf1_biased = conf1 + 0.2
                     use_left = conf1_biased >= conf2
                     base = box1 if use_left else box2
@@ -103,7 +109,6 @@ def merge_partial_boxes_once(partial_rows, full_boxes=None, y_thresh=8, x_thresh
                         conf_final,
                     )
 
-                    # 🚫 Check if merged area is too large
                     if avg_full_area:
                         merged_area = (merged_box[2] - merged_box[0]) * (merged_box[3] - merged_box[1])
                         if merged_area > 1.6 * avg_full_area:
@@ -116,22 +121,22 @@ def merge_partial_boxes_once(partial_rows, full_boxes=None, y_thresh=8, x_thresh
 
                     merged_boxes.append(merged_box)
                     if text_entry and test_mode:
-                        text_entry.insert("end", f"🟢 Merged (bias+check): {conf1:.2f}+0.2 vs {conf2:.2f}\n")
+                        text_entry.insert("end", f"🟢 Merged: {conf1:.2f}+0.2 vs {conf2:.2f}\n")
                         text_entry.see("end")
-                    i += 2
+                    i += 2  # ✅ Skip both merged boxes
                     continue
 
                 elif h_gap < 0 and v_overlap > -y_thresh:
                     shift_amount = abs(h_gap) + 5
                     x1b += shift_amount
                     x2b += shift_amount
-                    shifted_box2 = (x1b, y1b, x2b, y2b, cls2, conf2)
-                    row[i + 1] = shifted_box2
+                    row[i + 1] = (x1b, y1b, x2b, y2b, cls2, conf2)
 
                     if text_entry and test_mode:
-                        text_entry.insert("end", f"🟡 Shifted {box2} → {shifted_box2} by {shift_amount}px\n")
+                        text_entry.insert("end", f"🟡 Shifted {box2} → {row[i+1]} by {shift_amount}px\n")
                         text_entry.see("end")
 
+            # ❗ Only add if no merge occurred
             merged_boxes.append((x1, y1, x2, y2, cls1, conf1))
             i += 1
 
@@ -139,20 +144,27 @@ def merge_partial_boxes_once(partial_rows, full_boxes=None, y_thresh=8, x_thresh
 
 
 
-def merge_boxes(all_boxes, test_mode = False):
-    all_boxes=getSortedLikeCalendar(all_boxes=all_boxes)
+
+def merge_boxes(all_boxes, test_mode=False):
+    all_rows = getSortedLikeCalendar(all_boxes=all_boxes)
     full_boxes = []
-    partial_boxes = []
-    for rows in all_boxes:
-        for box in rows:
-            x1, y1, x2, y2, conf = box[:5]
+    partial_rows = []
+
+    for row in all_rows:
+        row.sort(key=lambda box: box[0])  # sort left-to-right by x1
+        partial_row = []
+        for box in row:
+            x1, y1, x2, y2, cls, conf = box[:6]
             if crosses_tile_edge(x1, x2):
-                partial_boxes.append(box)
+                partial_row.append(box)
             else:
                 full_boxes.append(box)
-        if test_mode:
-            print(f"Partial boxes: {len(partial_boxes)}, Full boxes: {len(full_boxes)}, All boxes: {len(all_boxes)}")
-        return full_boxes, partial_boxes
+
+        if partial_row:
+            partial_rows.append(partial_row)
+
+    return full_boxes, partial_rows  # ← add all_rows here if you want full calendar view
+
 
 def draw_boxes(image_cv, boxes, color=(0, 255, 0), test_mode=False, classes=None):
     if not test_mode:
