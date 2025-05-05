@@ -1,5 +1,7 @@
 # 📅 Study-Generator
 
+![UI Demo](screenshots/chat_example.png)
+
 ## Overview
 
 The Study Planner Assistant is a fully automated tool that captures, detects, interprets, and summarizes academic calendars using YOLO-based object detection, OCR, and GPT reasoning. Built for Canvas-style calendar screenshots, this system identifies assignments, groups them by day, and generates personalized study plans.
@@ -16,6 +18,25 @@ The Study Planner Assistant is a fully automated tool that captures, detects, in
 
 ---
 
+## 📸 Screenshots
+
+### ➕ Detection Pipeline
+
+![Raw Input vs. Box Detection](/screenshots/raw_input.png)
+![Raw Input vs. Box Detection](/screenshots/BTS%20image%20preprossessing.png)
+![Raw Input vs. Box Detection](/screenshots/final-detections.png)
+
+### 🧠 GPT Integration Output
+
+![GPT Response Example](/screenshots/chat_example.png)
+
+### 📊 Model Performance Chart
+
+> Include a chart of training/validation precision, recall, mAP here  
+> ![YOLOv5 Training Performance](screenshots/final-results.png)
+
+---
+
 ## 🔍 Dataset Generation
 
 ### 📄 Synthetic Calendar Generator
@@ -29,8 +50,6 @@ The `generator.js` file (Node.js + Puppeteer + Sharp) dynamically renders HTML v
 - Gaussian blur, cropping, resolution scaling
 
 This produced **thousands of training samples** with embedded YOLOv5 `.txt` labels in the YOLO format, enabling rapid augmentation and model iteration.
-
-> 📸 See `BTS image preprossessing.png` for raw vs. processed renderings
 
 ---
 
@@ -77,8 +96,6 @@ This prompt is sent to `ask_gpt()` which calls GPT-4o to generate:
 - A **study plan breakdown**
 - **Task prioritization**
 - **Clarification suggestions** for ambiguous or duplicate entries
-
-> 🧠 See `chat_example.png` for a real response.
 
 ---
 

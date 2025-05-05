@@ -12,7 +12,7 @@ import cv2
 from dotenv import load_dotenv
 import tkinter as tk
 
-test_mode = False
+test_mode = True
 
 classes = ["todo", "discussion", "class", "assignment"]
 def on_assignments_detected(_):
@@ -122,32 +122,32 @@ def on_assignments_detected(_):
 
 
 
-    # 📤 Format the calendar into a string for GPT
-    calendar_summary = ""
-    for i, day in enumerate(calendar, 1):
-        calendar_summary += f"📅 Day {i}:\n"
-        for class_label, text in day:
-            calendar_summary += f"  - [{class_label}] {text.strip()}\n"
+#     # 📤 Format the calendar into a string for GPT
+#     calendar_summary = ""
+#     for i, day in enumerate(calendar, 1):
+#         calendar_summary += f"📅 Day {i}:\n"
+#         for class_label, text in day:
+#             calendar_summary += f"  - [{class_label}] {text.strip()}\n"
 
-    if not calendar_summary.strip():
-        text_entry.insert("end", "\n⚠️ No assignment text found to send to GPT.\n")
-        text_entry.see("end")
-        return
+#     if not calendar_summary.strip():
+#         text_entry.insert("end", "\n⚠️ No assignment text found to send to GPT.\n")
+#         text_entry.see("end")
+#         return
 
-    # 💬 Send to GPT for processing
-    gpt_prompt = f"""Here is a calendar of upcoming tasks by day:\n\n{calendar_summary}
-Please review and suggest a study plan that prioritizes harder or urgent tasks. Also highlight if anything looks like a duplicate or unclear."""
+#     # 💬 Send to GPT for processing
+#     gpt_prompt = f"""Here is a calendar of upcoming tasks by day:\n\n{calendar_summary}
+# Please review and suggest a study plan that prioritizes harder or urgent tasks. Also highlight if anything looks like a duplicate or unclear."""
 
-    text_entry.insert("end", "\n🤖 Asking GPT to review calendar...\n")
-    text_entry.see("end")
+#     text_entry.insert("end", "\n🤖 Asking GPT to review calendar...\n")
+#     text_entry.see("end")
 
-    try:
-        gpt_response, _ = ask_gpt(gpt_prompt)
-        text_entry.insert("end", f"\n🧠 GPT's Study Suggestion:\n{gpt_response}\n")
-    except Exception as e:
-        text_entry.insert("end", f"\n❌ GPT failed: {e}\n")
+#     try:
+#         gpt_response, _ = ask_gpt(gpt_prompt)
+#         text_entry.insert("end", f"\n🧠 GPT's Study Suggestion:\n{gpt_response}\n")
+#     except Exception as e:
+#         text_entry.insert("end", f"\n❌ GPT failed: {e}\n")
 
-    text_entry.see("end")
+#     text_entry.see("end")
 
 
     # ✅ Log all detected classes
