@@ -55,8 +55,8 @@ def getSortedLikeCalendar(all_boxes=None,y_thresh=8):
         rows.append(sorted(current_row, key=lambda box: box[0]))
 
     return rows
-def merge_partial_boxes_once(partial_boxes, full_boxes=None, y_thresh=8, x_thresh=20, text_entry=None, test_mode=False):
-    if not partial_boxes:
+def merge_partial_boxes_once(partial_rows, full_boxes=None, y_thresh=8, x_thresh=20, text_entry=None, test_mode=False):
+    if not partial_rows:
         return []
 
     # 🔢 Calculate average full box area
@@ -65,13 +65,10 @@ def merge_partial_boxes_once(partial_boxes, full_boxes=None, y_thresh=8, x_thres
         areas = [(x2 - x1) * (y2 - y1) for x1, y1, x2, y2, *_ in full_boxes]
         avg_full_area = np.mean(areas) if areas else None
 
- 
-
-
 
     merged_boxes = []
 
-    for row in rows:
+    for row in partial_rows:
         i = 0
         while i < len(row):
             box1 = row[i]
@@ -146,15 +143,16 @@ def merge_boxes(all_boxes, test_mode = False):
     all_boxes=getSortedLikeCalendar(all_boxes=all_boxes)
     full_boxes = []
     partial_boxes = []
-    for box in all_boxes:
-        x1, y1, x2, y2, conf = box[:5]
-        if crosses_tile_edge(x1, x2):
-            partial_boxes.append(box)
-        else:
-            full_boxes.append(box)
-    if test_mode:
-        print(f"Partial boxes: {len(partial_boxes)}, Full boxes: {len(full_boxes)}, All boxes: {len(all_boxes)}")
-    return full_boxes, partial_boxes
+    for rows in all_boxes:
+        for box in rows:
+            x1, y1, x2, y2, conf = box[:5]
+            if crosses_tile_edge(x1, x2):
+                partial_boxes.append(box)
+            else:
+                full_boxes.append(box)
+        if test_mode:
+            print(f"Partial boxes: {len(partial_boxes)}, Full boxes: {len(full_boxes)}, All boxes: {len(all_boxes)}")
+        return full_boxes, partial_boxes
 
 def draw_boxes(image_cv, boxes, color=(0, 255, 0), test_mode=False, classes=None):
     if not test_mode:

@@ -13,6 +13,11 @@ def hash_image(image):
 def watch_clipboard(callback_on_results):
     global previous_hash
 
+    # ⏱️ Preload clipboard hash to skip old image
+    init_image = ImageGrab.grabclipboard()
+    if init_image and isinstance(init_image, Image.Image):
+        previous_hash = hash_image(init_image)
+
     def loop():
         global previous_hash
         while True:
@@ -21,13 +26,11 @@ def watch_clipboard(callback_on_results):
                 current_hash = hash_image(image)
                 if current_hash != previous_hash:
                     previous_hash = current_hash
-                    print("📋 Screenshot detected")
-                    
-                    # ❗ CALL THE YOLO FUNCTION HERE
-                    results = run_yolo_on_pil_image(image)
-                    
-                    # Now results is YOLO output, not raw image
-                    callback_on_results(results)
+                    # print("📋 Screenshot detected")
+
+                    # # 🧠 Run YOLO and return results
+                    # results = run_yolo_on_pil_image(image)
+                    callback_on_results(image)
             time.sleep(0.3)
 
     threading.Thread(target=loop, daemon=True).start()

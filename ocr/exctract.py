@@ -1,7 +1,5 @@
-import pytesseract
 import cv2
 from PIL import Image
-import time
 import easyocr
 
 reader = easyocr.Reader(['en'], gpu=True)
